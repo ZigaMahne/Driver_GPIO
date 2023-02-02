@@ -161,7 +161,7 @@ typedef struct {
   int32_t            (*PowerControl)    (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state);           ///< Pointer to \ref ARM_GPIO_PowerControl : Control GPIO Interface Power.
   int32_t            (*SetDirection)    (ARM_GPIO_Pin_t pin, ARM_GPIO_DIRECTION direction);    ///< Pointer to \ref ARM_GPIO_SetDirection : Set GPIO Direction.
   int32_t            (*SetOutputMode)   (ARM_GPIO_Pin_t pin, ARM_GPIO_OUTPUT_MODE mode);       ///< Pointer to \ref ARM_GPIO_SetOutputMode : Set GPIO Output Mode.
-  int32_t            (*SetPullResitor)  (ARM_GPIO_Pin_t pin, ARM_GPIO_PULL_RESISTOR resistor); ///< Pointer to \ref ARM_GPIO_SetPullResistor : Set GPIO Pull Resistor.
+  int32_t            (*SetPullResistor) (ARM_GPIO_Pin_t pin, ARM_GPIO_PULL_RESISTOR resistor); ///< Pointer to \ref ARM_GPIO_SetPullResistor : Set GPIO Pull Resistor.
   int32_t            (*SetEventTrigger) (ARM_GPIO_Pin_t pin, ARM_GPIO_EVENT_TRIGGER trigger);  ///< Pointer to \ref ARM_GPIO_SetEventTrigger : Set GPIO Event Trigger.
   void               (*SetOutput)       (ARM_GPIO_Pin_t pin, uint32_t level);                  ///< Pointer to \ref ARM_GPIO_SetOutput : Set GPIO Output Level.
   uint32_t           (*GetInput)        (ARM_GPIO_Pin_t pin);                                  ///< Pointer to \ref ARM_GPIO_GetInput : Get GPIO Input Level.
