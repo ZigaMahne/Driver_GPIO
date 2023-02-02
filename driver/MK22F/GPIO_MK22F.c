@@ -177,9 +177,6 @@ static int32_t GPIO_Initialize (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_ev
     pin_port = pin >> 5U;
     pin_num  = pin & 0x1FU;
     SignalEvent[pin_port][pin_num] = cb_event;
-    if (cb_event != NULL) {
-      NVIC_EnableIRQ(PortIRQn[pin_port]);
-    }
     result = ARM_DRIVER_OK;
   }
  
@@ -190,21 +187,12 @@ static int32_t GPIO_Initialize (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_ev
 static int32_t GPIO_Uninitialize (ARM_GPIO_Pin_t pin) {
   uint32_t pin_port;
   uint32_t pin_num;
-  uint32_t i;
   int32_t  result = ARM_DRIVER_ERROR;
 
   if (pin < GPIO_MAX_PINS) {
     pin_port = pin >> 5U;
     pin_num  = pin & 0x1FU;
     SignalEvent[pin_port][pin_num] = NULL;
-    for (i = 0U; i < 32U; i++) {
-      if (SignalEvent[pin_port][i] != NULL) {
-        break;
-      }
-    }
-    if (i == 32U) {
-      NVIC_DisableIRQ(PortIRQn[pin_port]);
-    }
     result = ARM_DRIVER_OK;
   }
  
@@ -231,6 +219,7 @@ static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
         GPIO_PinSetDirection(gpio, pin_num, kGPIO_DigitalInput);
         PORT_SetPinConfig(port, pin_num, &DisabledPinConfig);
         if (PortActive[pin_port] == 0U) {
+          NVIC_DisableIRQ(PortIRQn[pin_port]);
           CLOCK_DisableClock(ClockIP[pin_port]);
         }
         break;
@@ -243,6 +232,7 @@ static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
           PORT_SetPinInterruptConfig(port, pin_num, kPORT_InterruptOrDMADisabled);
           GPIO_PinSetDirection(gpio, pin_num, kGPIO_DigitalInput);
           PORT_SetPinConfig(port, pin_num, &DefaultPinConfig);
+          NVIC_EnableIRQ(PortIRQn[pin_port]);
         }
         result = ARM_DRIVER_OK;
         break;
