@@ -5,6 +5,8 @@ The API features I/O operations on pin level (does not support simultaneous oper
 The API provides basic pin configuration (direction, output mode, pull-resistor, event trigger) excluding advanced settings (drive strength or speed, input filter, ...), 
 setting outputs and reading inputs.
 
+The API is defined in the [Driver_GPIO.h](./Driver_GPIO.h) header file.
+
 
 ## API aligned with CMSIS-Driver specification
 
