@@ -220,7 +220,6 @@ static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
         PORT_SetPinConfig(port, pin_num, &DisabledPinConfig);
         if (PortActive[pin_port] == 0U) {
           NVIC_DisableIRQ(PortIRQn[pin_port]);
-          CLOCK_DisableClock(ClockIP[pin_port]);
         }
         break;
       case ARM_POWER_LOW:
