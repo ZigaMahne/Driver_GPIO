@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * $Date:        31. January 2023
+ * $Date:        10. February 2023
  * $Revision:    V1.0
  *
  * Project:      GPIO (General-purpose Input/Output) Driver definitions
@@ -30,12 +30,6 @@ extern "C"
 #endif
 
 #include "Driver_Common.h"
-
-#define ARM_GPIO_API_VERSION ARM_DRIVER_VERSION_MAJOR_MINOR(1, 0) /* API version */
-
-
-#define _ARM_Driver_GPIO_(n)      Driver_GPIO##n
-#define  ARM_Driver_GPIO_(n) _ARM_Driver_GPIO_(n)
 
 
 /**
@@ -87,25 +81,10 @@ typedef enum {
 
 // Function documentation
 /**
-  \fn          ARM_DRIVER_VERSION ARM_GetVersion (void)
-  \brief       Get driver version.
-  \return      \ref ARM_DRIVER_VERSION
-
-  \fn          int32_t ARM_GPIO_Initialize (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event)
-  \brief       Initialize GPIO Interface.
+  \fn          int32_t ARM_GPIO_Setup (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event)
+  \brief       Setup GPIO Interface.
   \param[in]   pin  GPIO Pin
   \param[in]   cb_event  Pointer to \ref ARM_GPIO_SignalEvent
-  \return      \ref execution_status
-
-  \fn          int32_t ARM_GPIO_Uninitialize (ARM_GPIO_Pin_t pin)
-  \param[in]   pin  GPIO Pin
-  \brief       De-initialize GPIO Interface.
-  \return      \ref execution_status
-
-  \fn          int32_t ARM_GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state)
-  \brief       Control GPIO Interface Power.
-  \param[in]   pin  GPIO Pin
-  \param[in]   state  Power state
   \return      \ref execution_status
 
   \fn          int32_t ARM_GPIO_SetDirection (ARM_GPIO_Pin_t pin, ARM_GPIO_DIRECTION direction)
@@ -155,16 +134,13 @@ typedef void (*ARM_GPIO_SignalEvent_t) (ARM_GPIO_Pin_t pin, uint32_t event);  /*
 \brief Access structure of the GPIO Driver.
 */
 typedef struct {
-  ARM_DRIVER_VERSION (*GetVersion)      (void);                                                ///< Pointer to \ref ARM_GPIO_GetVersion : Get driver version.
-  int32_t            (*Initialize)      (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event); ///< Pointer to \ref ARM_GPIO_Initialize : Initialize GPIO Interface.
-  int32_t            (*Uninitialize)    (ARM_GPIO_Pin_t pin);                                  ///< Pointer to \ref ARM_GPIO_Uninitialize : De-initialize GPIO Interface.
-  int32_t            (*PowerControl)    (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state);           ///< Pointer to \ref ARM_GPIO_PowerControl : Control GPIO Interface Power.
-  int32_t            (*SetDirection)    (ARM_GPIO_Pin_t pin, ARM_GPIO_DIRECTION direction);    ///< Pointer to \ref ARM_GPIO_SetDirection : Set GPIO Direction.
-  int32_t            (*SetOutputMode)   (ARM_GPIO_Pin_t pin, ARM_GPIO_OUTPUT_MODE mode);       ///< Pointer to \ref ARM_GPIO_SetOutputMode : Set GPIO Output Mode.
-  int32_t            (*SetPullResistor) (ARM_GPIO_Pin_t pin, ARM_GPIO_PULL_RESISTOR resistor); ///< Pointer to \ref ARM_GPIO_SetPullResistor : Set GPIO Pull Resistor.
-  int32_t            (*SetEventTrigger) (ARM_GPIO_Pin_t pin, ARM_GPIO_EVENT_TRIGGER trigger);  ///< Pointer to \ref ARM_GPIO_SetEventTrigger : Set GPIO Event Trigger.
-  void               (*SetOutput)       (ARM_GPIO_Pin_t pin, uint32_t level);                  ///< Pointer to \ref ARM_GPIO_SetOutput : Set GPIO Output Level.
-  uint32_t           (*GetInput)        (ARM_GPIO_Pin_t pin);                                  ///< Pointer to \ref ARM_GPIO_GetInput : Get GPIO Input Level.
+  int32_t  (*Setup)           (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event); ///< Pointer to \ref ARM_GPIO_Setup : Setup GPIO Interface.
+  int32_t  (*SetDirection)    (ARM_GPIO_Pin_t pin, ARM_GPIO_DIRECTION direction);    ///< Pointer to \ref ARM_GPIO_SetDirection : Set GPIO Direction.
+  int32_t  (*SetOutputMode)   (ARM_GPIO_Pin_t pin, ARM_GPIO_OUTPUT_MODE mode);       ///< Pointer to \ref ARM_GPIO_SetOutputMode : Set GPIO Output Mode.
+  int32_t  (*SetPullResistor) (ARM_GPIO_Pin_t pin, ARM_GPIO_PULL_RESISTOR resistor); ///< Pointer to \ref ARM_GPIO_SetPullResistor : Set GPIO Pull Resistor.
+  int32_t  (*SetEventTrigger) (ARM_GPIO_Pin_t pin, ARM_GPIO_EVENT_TRIGGER trigger);  ///< Pointer to \ref ARM_GPIO_SetEventTrigger : Set GPIO Event Trigger.
+  void     (*SetOutput)       (ARM_GPIO_Pin_t pin, uint32_t level);                  ///< Pointer to \ref ARM_GPIO_SetOutput : Set GPIO Output Level.
+  uint32_t (*GetInput)        (ARM_GPIO_Pin_t pin);                                  ///< Pointer to \ref ARM_GPIO_GetInput : Get GPIO Input Level.
 } const ARM_DRIVER_GPIO;
 
 #ifdef  __cplusplus

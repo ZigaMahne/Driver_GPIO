@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * $Date:        31. January 2023
+ * $Date:        10. February 2023
  * $Revision:    V1.0
  *
  * Project:      GPIO Driver definitions for Kinetis K22F
@@ -44,7 +44,7 @@ extern void GPIO5_Combined_0_15_IRQHandler (void);
 extern void GPIO5_Combined_16_31_IRQHandler (void);
 
 // GPIO0 Driver access structure
-extern ARM_DRIVER_GPIO Driver_GPIO0;
+extern ARM_DRIVER_GPIO Driver_GPIO;
 
 #ifdef  __cplusplus
 }

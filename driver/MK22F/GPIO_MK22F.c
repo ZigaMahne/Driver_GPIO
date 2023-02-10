@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * $Date:        31. January 2023
+ * $Date:        10. February 2023
  * $Revision:    V1.0
  *
  * Project:      GPIO Driver for Kinetis K22F
@@ -29,13 +29,6 @@
 
 #include "GPIO_MK22F.h"
 
-// Driver version
-#define ARM_GPIO_DRV_VERSION ARM_DRIVER_VERSION_MAJOR_MINOR(1, 0)
-
-static const ARM_DRIVER_VERSION GPIO_DriverVersion = {
-  ARM_GPIO_API_VERSION, ARM_GPIO_DRV_VERSION
-};
-
 
 // Pin mapping
 //   0 ..  31: PORTA 0..31
@@ -46,17 +39,6 @@ static const ARM_DRIVER_VERSION GPIO_DriverVersion = {
 
 #define GPIO_MAX_PORTS          5U
 #define GPIO_MAX_PINS           160U
-
-// Disabled Pin Configuration
-static const port_pin_config_t DisabledPinConfig = {
-  .pullSelect = kPORT_PullDisable,
-  .slewRate = kPORT_FastSlewRate,
-  .passiveFilterEnable = kPORT_PassiveFilterDisable,
-  .openDrainEnable = kPORT_OpenDrainDisable,
-  .driveStrength = kPORT_LowDriveStrength,
-  .mux = kPORT_PinDisabledOrAnalog,
-  .lockRegister = kPORT_UnlockRegister
-};
 
 // Default Pin Configuration
 static const port_pin_config_t DefaultPinConfig = {
@@ -87,12 +69,6 @@ static GPIO_Type * const GPIOBase[GPIO_MAX_PORTS] = {
 // Clock IP Names
 static clock_ip_name_t const ClockIP[GPIO_MAX_PORTS] = {
   kCLOCK_PortA, kCLOCK_PortB, kCLOCK_PortC, kCLOCK_PortD, kCLOCK_PortE
-};
-
-
-// Port Active Flags
-static uint32_t PortActive[GPIO_MAX_PORTS] = {
-  0U, 0U, 0U, 0U, 0U
 };
 
 
@@ -162,45 +138,8 @@ void PORTE_IRQHandler (void) {
 }
 
 
-// Get driver version
-static ARM_DRIVER_VERSION GPIO_GetVersion (void) {
-  return GPIO_DriverVersion;
-}
-
-// Initialize GPIO Interface
-static int32_t GPIO_Initialize (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) {
-  uint32_t pin_port;
-  uint32_t pin_num;
-  int32_t  result = ARM_DRIVER_ERROR;
-
-  if (pin < GPIO_MAX_PINS) {
-    pin_port = pin >> 5U;
-    pin_num  = pin & 0x1FU;
-    SignalEvent[pin_port][pin_num] = cb_event;
-    result = ARM_DRIVER_OK;
-  }
- 
-  return result;
-}
-
-// De-initialize GPIO Interface
-static int32_t GPIO_Uninitialize (ARM_GPIO_Pin_t pin) {
-  uint32_t pin_port;
-  uint32_t pin_num;
-  int32_t  result = ARM_DRIVER_ERROR;
-
-  if (pin < GPIO_MAX_PINS) {
-    pin_port = pin >> 5U;
-    pin_num  = pin & 0x1FU;
-    SignalEvent[pin_port][pin_num] = NULL;
-    result = ARM_DRIVER_OK;
-  }
- 
-  return result;
-}
-
-// Control GPIO Interface Power
-static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
+// Setup GPIO Interface
+static int32_t GPIO_Setup (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) {
   PORT_Type *port;
   GPIO_Type *gpio;
   uint32_t   pin_port;
@@ -212,30 +151,13 @@ static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
     pin_num  = pin & 0x1FU;
     port = PortBase[pin_port];
     gpio = GPIOBase[pin_port];
-    switch (state) {
-      case ARM_POWER_OFF:
-        PortActive[pin_port] &= ~(1U << pin_num);
-        PORT_SetPinInterruptConfig(port, pin_num, kPORT_InterruptOrDMADisabled);
-        GPIO_PinSetDirection(gpio, pin_num, kGPIO_DigitalInput);
-        PORT_SetPinConfig(port, pin_num, &DisabledPinConfig);
-        if (PortActive[pin_port] == 0U) {
-          NVIC_DisableIRQ(PortIRQn[pin_port]);
-        }
-        break;
-      case ARM_POWER_LOW:
-        break;
-      case ARM_POWER_FULL:
-        if ((PortActive[pin_port] & (1U << pin_num)) == 0U) {
-          PortActive[pin_port] |= (1U << pin_num);
-          CLOCK_EnableClock(ClockIP[pin_port]);
-          PORT_SetPinInterruptConfig(port, pin_num, kPORT_InterruptOrDMADisabled);
-          GPIO_PinSetDirection(gpio, pin_num, kGPIO_DigitalInput);
-          PORT_SetPinConfig(port, pin_num, &DefaultPinConfig);
-          NVIC_EnableIRQ(PortIRQn[pin_port]);
-        }
-        result = ARM_DRIVER_OK;
-        break;
-    }
+    SignalEvent[pin_port][pin_num] = cb_event;
+    CLOCK_EnableClock(ClockIP[pin_port]);
+    PORT_SetPinInterruptConfig(port, pin_num, kPORT_InterruptOrDMADisabled);
+    GPIO_PinSetDirection(gpio, pin_num, kGPIO_DigitalInput);
+    PORT_SetPinConfig(port, pin_num, &DefaultPinConfig);
+    NVIC_EnableIRQ(PortIRQn[pin_port]);
+    result = ARM_DRIVER_OK;
   }
 
   return result;
@@ -385,12 +307,9 @@ static uint32_t GPIO_GetInput (ARM_GPIO_Pin_t pin) {
 }
 
 
-// GPIO0 Driver access structure
-ARM_DRIVER_GPIO Driver_GPIO0 = {
-  GPIO_GetVersion,
-  GPIO_Initialize,
-  GPIO_Uninitialize,
-  GPIO_PowerControl,
+// GPIO Driver access structure
+ARM_DRIVER_GPIO Driver_GPIO = {
+  GPIO_Setup,
   GPIO_SetDirection,
   GPIO_SetOutputMode,
   GPIO_SetPullResistor,

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * $Date:        31. January 2023
+ * $Date:        10. February 2023
  * $Revision:    V1.0
  *
  * Project:      GPIO Driver for STM32U5xx
@@ -26,13 +26,6 @@
 #include "stm32u5xx_ll_exti.h"
 
 #include "GPIO_STM32U5xx.h"
-
-// Driver version
-#define ARM_GPIO_DRV_VERSION ARM_DRIVER_VERSION_MAJOR_MINOR(1, 0)
-
-static const ARM_DRIVER_VERSION GPIO_DriverVersion = {
-  ARM_GPIO_API_VERSION, ARM_GPIO_DRV_VERSION
-};
 
 
 // Pin mapping
@@ -263,92 +256,34 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin) {
 }
 
 
-// Get driver version
-static ARM_DRIVER_VERSION GPIO_GetVersion (void) {
-  return GPIO_DriverVersion;
-}
-
-// Initialize GPIO Interface
-static int32_t GPIO_Initialize (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) {
-  GPIO_TypeDef *gpio;
-  uint32_t      pin_port;
-  uint32_t      pin_num;
-  int32_t       result = ARM_DRIVER_ERROR;
-
-  if (pin < GPIO_MAX_PINS) {
-    pin_port = pin >> 4U;
-    pin_num  = pin & 0x0FU;
-    gpio = GPIOx[pin_port];
-    if (gpio != NULL) {
-      if (SignalEvent[pin_num] == NULL) {
-        SignalEvent[pin_num] = cb_event;
-        SignalPort [pin_num] = (uint8_t)pin_port;
-        NVIC_EnableIRQ(EXTIx_IRQn[pin_num]);
-        result = ARM_DRIVER_OK;
-      }
-    }
-  }
-
-  return result;
-}
-
-// De-initialize GPIO Interface
-static int32_t GPIO_Uninitialize (ARM_GPIO_Pin_t pin) {
-  GPIO_TypeDef *gpio;
-  uint32_t pin_port;
-  uint32_t pin_num;
-  int32_t  result = ARM_DRIVER_ERROR;
-
-  if (pin < GPIO_MAX_PINS) {
-    pin_port = pin >> 4U;
-    pin_num  = pin & 0x0FU;
-    gpio = GPIOx[pin_port];
-    if (gpio != NULL) {
-      if (SignalEvent[pin_num] != NULL) {
-        if (SignalPort[pin_num] == (uint8_t)pin_port) {
-          SignalEvent[pin_num] = NULL;
-          SignalPort [pin_num] = 0xFFU;
-          NVIC_DisableIRQ(EXTIx_IRQn[pin_num]);
-        }
-      }
-    }
-    result = ARM_DRIVER_OK;
-  }
- 
-  return result;
-}
-
-// Control GPIO Interface Power
-static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
+// Setup GPIO Interface
+static int32_t GPIO_Setup (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) {
   GPIO_TypeDef    *gpio;
   GPIO_InitTypeDef init;
   uint32_t         pin_port;
+  uint32_t         pin_num;
   uint32_t         pin_mask;
   int32_t          result = ARM_DRIVER_ERROR;
 
   if (pin < GPIO_MAX_PINS) {
     pin_port = pin >> 4U;
-    pin_mask = 1U << (pin & 0x0FU);
+    pin_num  = pin & 0x0FU;
+    pin_mask = 1U << pin_num;
     gpio = GPIOx[pin_port];
     if (gpio != NULL) {
-      switch (state) {
-        case ARM_POWER_OFF:
-          HAL_GPIO_DeInit(gpio, pin_mask);
-          result = ARM_DRIVER_OK;
-          break;
-        case ARM_POWER_LOW:
-          break;
-        case ARM_POWER_FULL:
-          GPIO_ClockEnable(gpio);
-          init.Pin       = pin_mask;
-          init.Mode      = GPIO_MODE_INPUT | GPIO_MODE_OUTPUT_PP;
-          init.Pull      = GPIO_NOPULL;
-          init.Speed     = GPIO_SPEED_FREQ_LOW;
-          init.Alternate = 0U;
-          HAL_GPIO_WritePin(gpio, (uint16_t)pin_mask, GPIO_PIN_RESET);
-          HAL_GPIO_Init(gpio, &init);
-          result = ARM_DRIVER_OK;
-          break;
+      if (SignalEvent[pin_num] == NULL) {
+        SignalEvent[pin_num] = cb_event;
+        SignalPort [pin_num] = (uint8_t)pin_port;
+        init.Pin       = pin_mask;
+        init.Mode      = GPIO_MODE_INPUT | GPIO_MODE_OUTPUT_PP;
+        init.Pull      = GPIO_NOPULL;
+        init.Speed     = GPIO_SPEED_FREQ_LOW;
+        init.Alternate = 0U;
+        GPIO_ClockEnable(gpio);
+        HAL_GPIO_WritePin(gpio, (uint16_t)pin_mask, GPIO_PIN_RESET);
+        HAL_GPIO_Init(gpio, &init);
+        NVIC_EnableIRQ(EXTIx_IRQn[pin_num]);
+        result = ARM_DRIVER_OK;
       }
     }
   }
@@ -536,12 +471,9 @@ static uint32_t GPIO_GetInput (ARM_GPIO_Pin_t pin) {
 }
 
 
-// GPIO0 Driver access structure
-ARM_DRIVER_GPIO Driver_GPIO0 = {
-  GPIO_GetVersion,
-  GPIO_Initialize,
-  GPIO_Uninitialize,
-  GPIO_PowerControl,
+// GPIO Driver access structure
+ARM_DRIVER_GPIO Driver_GPIO = {
+  GPIO_Setup,
   GPIO_SetDirection,
   GPIO_SetOutputMode,
   GPIO_SetPullResistor,

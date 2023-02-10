@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * $Date:        1. February 2023
+ * $Date:        10. February 2023
  * $Revision:    V1.0
  *
  * Project:      GPIO Driver for i.MX RT1050
@@ -28,13 +28,6 @@
 #include "fsl_iomuxc_ex.h"
 
 #include "GPIO_iMXRT1050.h"
-
-// Driver version
-#define ARM_GPIO_DRV_VERSION ARM_DRIVER_VERSION_MAJOR_MINOR(1, 0)
-
-static const ARM_DRIVER_VERSION GPIO_DriverVersion = {
-  ARM_GPIO_API_VERSION, ARM_GPIO_DRV_VERSION
-};
 
 
 // Pin mapping
@@ -222,12 +215,6 @@ static clock_ip_name_t const ClockIP[GPIO_MAX_PORTS] = {
 };
 
 
-// GPIO port Active Flags
-static uint32_t GpioActive[GPIO_MAX_PORTS] = {
-  0U, 0U, 0U, 0U, 0U
-};
-
-
 // Signal Event callback functions
 static ARM_GPIO_SignalEvent_t SignalEvent[GPIO_MAX_PORTS][32];
 
@@ -309,45 +296,8 @@ void GPIO5_Combined_16_31_IRQHandler (void) {
 }
 
 
-// Get driver version
-static ARM_DRIVER_VERSION GPIO_GetVersion (void) {
-  return GPIO_DriverVersion;
-}
-
-// Initialize GPIO Interface
-static int32_t GPIO_Initialize (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) {
-  uint32_t pin_port;
-  uint32_t pin_num;
-  int32_t  result = ARM_DRIVER_ERROR;
-
-  if (pin < GPIO_MAX_PINS) {
-    pin_port = pin >> 5U;
-    pin_num  = pin & 0x1FU;
-    SignalEvent[pin_port][pin_num] = cb_event;
-    result = ARM_DRIVER_OK;
-  }
- 
-  return result;
-}
-
-// De-initialize GPIO Interface
-static int32_t GPIO_Uninitialize (ARM_GPIO_Pin_t pin) {
-  uint32_t pin_port;
-  uint32_t pin_num;
-  int32_t  result = ARM_DRIVER_ERROR;
-
-  if (pin < GPIO_MAX_PINS) {
-    pin_port = pin >> 5U;
-    pin_num  = pin & 0x1FU;
-    SignalEvent[pin_port][pin_num] = NULL;
-    result = ARM_DRIVER_OK;
-  }
- 
-  return result;
-}
-
-// Control GPIO Interface Power
-static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
+// Setup GPIO Interface
+static int32_t GPIO_Setup (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) {
   GPIO_Type *gpio;
   uint32_t   pin_port;
   uint32_t   pin_num;
@@ -357,31 +307,14 @@ static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
     pin_port = pin >> 5U;
     pin_num  = pin & 0x1FU;
     gpio = GPIOBase[pin_port];
-    switch (state) {
-      case ARM_POWER_OFF:
-        GpioActive[pin_port] &= ~(1U << pin_num);
-        GPIO_SetPinInterruptConfig(gpio, pin_num, kGPIO_NoIntmode);
-        GPIO_PinSetDirection(gpio, pin_num, kGPIO_DigitalInput);
-        IOMUXC_SetPinConfig(0U, 0U, 0U, 0U, PinConfig[pin].configRegister, DefaultPinConfig);
-        if (GpioActive[pin_port] == 0U) {
-          NVIC_DisableIRQ(GPIOIRQn[(pin_port << 1U) + (pin_num >> 4U)]);
-        }
-        break;
-      case ARM_POWER_LOW:
-        break;
-      case ARM_POWER_FULL:
-        if ((GpioActive[pin_port] & (1U << pin_num)) == 0U) {
-          GpioActive[pin_port] |= (1U << pin_num);
-          CLOCK_EnableClock(ClockIP[pin_port]);
-          GPIO_SetPinInterruptConfig(gpio, pin_num, kGPIO_NoIntmode);
-          GPIO_PinSetDirection(gpio, pin_num, kGPIO_DigitalInput);
-          IOMUXC_SetPinConfig(0U, 0U, 0U, 0U, PinConfig[pin].configRegister, DefaultPinConfig);
-          IOMUXC_SetPinMux(PinConfig[pin].muxRegister, PinConfig[pin].muxMode, 0U, 0U, 0U, 0U);
-          NVIC_EnableIRQ(GPIOIRQn[(pin_port << 1U) + (pin_num >> 4U)]);
-        }
-        result = ARM_DRIVER_OK;
-        break;
-    }
+    SignalEvent[pin_port][pin_num] = cb_event;
+    CLOCK_EnableClock(ClockIP[pin_port]);
+    GPIO_SetPinInterruptConfig(gpio, pin_num, kGPIO_NoIntmode);
+    GPIO_PinSetDirection(gpio, pin_num, kGPIO_DigitalInput);
+    IOMUXC_SetPinConfig(0U, 0U, 0U, 0U, PinConfig[pin].configRegister, DefaultPinConfig);
+    IOMUXC_SetPinMux(PinConfig[pin].muxRegister, PinConfig[pin].muxMode, 0U, 0U, 0U, 0U);
+    NVIC_EnableIRQ(GPIOIRQn[(pin_port << 1U) + (pin_num >> 4U)]);
+    result = ARM_DRIVER_OK;
   }
 
   return result;
@@ -519,12 +452,9 @@ static uint32_t GPIO_GetInput (ARM_GPIO_Pin_t pin) {
 }
 
 
-// GPIO0 Driver access structure
-ARM_DRIVER_GPIO Driver_GPIO0 = {
-  GPIO_GetVersion,
-  GPIO_Initialize,
-  GPIO_Uninitialize,
-  GPIO_PowerControl,
+// GPIO Driver access structure
+ARM_DRIVER_GPIO Driver_GPIO = {
+  GPIO_Setup,
   GPIO_SetDirection,
   GPIO_SetOutputMode,
   GPIO_SetPullResistor,

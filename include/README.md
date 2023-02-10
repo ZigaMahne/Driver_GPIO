@@ -5,12 +5,14 @@ The API features I/O operations on pin level (does not support simultaneous oper
 The API provides basic pin configuration (direction, output mode, pull-resistor, event trigger) excluding advanced settings (drive strength or speed, input filter, ...), 
 setting outputs and reading inputs.
 
+Current proposal is the [API not aligned with CMSIS-Driver specification](#api-not-aligned-with-cmsis-driver-specification).
+
 The API is defined in the [Driver_GPIO.h](./Driver_GPIO.h) header file.
 
 
 ## API aligned with CMSIS-Driver specification
 
-Current proposal is aligned with [CMSIS-Driver](https://arm-software.github.io/CMSIS_5/Driver/html/group__mci__interface__gr.html) specification with some exceptions.
+This proposal is aligned with [CMSIS-Driver](https://arm-software.github.io/CMSIS_5/Driver/html/group__mci__interface__gr.html) specification with some exceptions.
 
 The API provides common driver functions and expects function calls as described in CMSIS-Driver [Theory of Operation](https://arm-software.github.io/CMSIS_5/Driver/html/theoryOperation.html).
 
@@ -67,19 +69,17 @@ The following functions set the pin output or read the pin input:
  >Note: **SetOutput** can be used also in input mode to set the output register to desired value before the direction is changed to output.
 
  
-## Alternative API not aligned with CMSIS-Driver specification
+## API not aligned with CMSIS-Driver specification
 
 Proposed API for GPIO Driver is fairly simple. Using CMSIS-Driver Common Functions might introduce unnecessary overhead and complexity. 
-Alternative could be a simpler API which is however not aligned with CMSIS-Driver specification.
+Alternative is a simpler API which is however not aligned with CMSIS-Driver specification.
 
-### Single setup function and separate configuration
+CMSIS-Driver Common Functions (**Initialize**, **Uninitialize**, **PowerControl**) are replaced by a single function **Setup** 
+which behaves as combined **Initialize** and **PowerControl**(ARM_POWER_FULL).
 
-CMSIS-Driver Common Functions (**Initialize**, **Uninitialize**, **PowerControl**) could be replaced by a single function **Setup** 
-which would behave as combined **Initialize** and **PowerControl**(ARM_POWER_FULL).
+Other Common Functions (**GetVersion**, **GetCapabilities**) are dropped for further simplification.
 
-Other Common Functions (**GetVersion**, **GetCapabilities**) could also be dropped for further simplification.
-
-The API would consist of the following functions:
+The API consists of the following functions:
 ```
 int32_t  (*Setup)           (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event)
 int32_t  (*SetDirection)    (ARM_GPIO_Pin_t pin, ARM_GPIO_DIRECTION direction)
@@ -91,20 +91,4 @@ uint32_t (*GetInput)        (ARM_GPIO_Pin_t pin)
 void     (*SignalEvent)     (ARM_GPIO_Pin_t pin, uint32_t event);  // Callback
 ```
 
->Note: Functions are still exposed in an access structure as in CMSIS-Driver (could be also changed).
-
-### Combined setup and configuration in a single function
-
-A further simplification could be combining the setup and configuration which would result in the API with only the following functions:
-
-```
-int32_t  (*Configure)       (ARM_GPIO_Pin_t pin, uint32_t configuration, ARM_GPIO_SignalEvent_t cb_event)
-void     (*SetOutput)       (ARM_GPIO_Pin_t pin, uint32_t level)
-uint32_t (*GetInput)        (ARM_GPIO_Pin_t pin)
-void     (*SignalEvent)     (ARM_GPIO_Pin_t pin, uint32_t event);  // Callback
-```
-
-Function **Configure** would do the complete configuration from clock setup, multiplexer and configuration (direction, output mode, pull resistor, event trigger) 
-specified as a single parameter.
-
->Note: The driver would need to correctly implement the configuration to avoid unwanted glitches on pins or spurious interrupts as mentioned before.
+>Note: Functions are still exposed in an access structure as in CMSIS-Driver (could be changed).
