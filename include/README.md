@@ -77,7 +77,7 @@ Alternative could be a simpler API which is however not aligned with CMSIS-Drive
 CMSIS-Driver Common Functions (**Initialize**, **Uninitialize**, **PowerControl**) could be replaced by a single function **Setup** 
 which would behave as combined **Initialize** and **PowerControl**(ARM_POWER_FULL).
 
-Other Common Functions (**GetVersion**, **GetCapabilities**) could also be dropper for further simplification.
+Other Common Functions (**GetVersion**, **GetCapabilities**) could also be dropped for further simplification.
 
 The API would consist of the following functions:
 ```
