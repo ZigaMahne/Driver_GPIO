@@ -18,11 +18,11 @@
  * $Date:        9. February 2023
  * $Revision:    V1.0
  *
- * Project:      GPIO Driver for LPC54114
+ * Project:      GPIO Driver for LPC5411x
  */
 
-#ifndef GPIO_MK22F_H_
-#define GPIO_MK22F_H_
+#ifndef GPIO_LPC5411X_H_
+#define GPIO_LPC5411X_H_
 
 #ifdef  __cplusplus
 extern "C"
@@ -44,5 +44,5 @@ extern ARM_DRIVER_GPIO Driver_GPIO;
 }
 #endif
 
-#endif /* GPIO_MK22F_H_ */
+#endif /* GPIO_LPC5411X_H_ */
 

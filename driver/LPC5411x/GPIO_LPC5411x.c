@@ -18,7 +18,7 @@
  * $Date:        9. February 2023
  * $Revision:    V1.0
  *
- * Project:      GPIO Driver for LPC54114
+ * Project:      GPIO Driver for LPC5411x
  */
 
 #include "fsl_clock.h"
@@ -28,14 +28,6 @@
 #include "fsl_iocon_ex.h"
 
 #include "GPIO_LPC5411x.h"
-
-
-// Driver version
-#define ARM_GPIO_DRV_VERSION ARM_DRIVER_VERSION_MAJOR_MINOR(1, 0)
-
-static const ARM_DRIVER_VERSION GPIO_DriverVersion = {
-  ARM_GPIO_API_VERSION, ARM_GPIO_DRV_VERSION
-};
 
 
 // Pin mapping
@@ -65,11 +57,6 @@ static IRQn_Type const PinIRQn[4U] = {
 // Clock IP Names
 static clock_ip_name_t const ClockIP[GPIO_MAX_PORTS] = {
   kCLOCK_Gpio0, kCLOCK_Gpio1
-};
-
-// Port Active Flags
-static uint32_t PortActive[GPIO_MAX_PORTS] = {
-  0U, 0U
 };
 
 
@@ -131,41 +118,8 @@ void PIN_INT3_IRQHandler (void) {
 }
 
 
-// Get driver version
-static ARM_DRIVER_VERSION GPIO_GetVersion (void) {
-  return GPIO_DriverVersion;
-}
-
-// Initialize GPIO Interface
-static int32_t GPIO_Initialize (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) {
-  uint32_t pint;
-  int32_t  result = ARM_DRIVER_ERROR;
-
-  if (pin < GPIO_MAX_PINS) {
-    pint = pin >> 4U;
-    SignalEvent[pint] = cb_event;
-    result = ARM_DRIVER_OK;
-  }
- 
-  return result;
-}
-
-// De-initialize GPIO Interface
-static int32_t GPIO_Uninitialize (ARM_GPIO_Pin_t pin) {
-  uint32_t pint;
-  int32_t  result = ARM_DRIVER_ERROR;
-
-  if (pin < GPIO_MAX_PINS) {
-    pint = pin >> 4U;
-    SignalEvent[pint] = NULL;
-    result = ARM_DRIVER_OK;
-  }
- 
-  return result;
-}
-
-// Control GPIO Interface Power
-static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
+// Setup GPIO Interface
+static int32_t GPIO_Setup (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) {
   uint32_t pin_port;
   uint32_t pin_num;
   uint32_t pint;
@@ -175,37 +129,21 @@ static int32_t GPIO_PowerControl (ARM_GPIO_Pin_t pin, ARM_POWER_STATE state) {
     pin_port = pin >> 1U;
     pin_num  = pin & 0x1FU;
     pint     = pin >> 4U;
-    switch (state) {
-      case ARM_POWER_OFF:
-        PortActive[pin_port] &= ~(1U << pin_num);
-        PINT_PinInterruptConfig(PINT, (pint_pin_int_t)pint, kPINT_PinIntEnableNone, NULL);
-        GPIO_PinSetDirection(GPIO, pin_port, pin_num, kGPIO_DigitalInput);
-        if (PortActive[pin_port] == 0U) {
-          NVIC_EnableIRQ(PinIRQn[pin >> 4U]);
-          CLOCK_DisableClock(ClockIP[pin_port]);
-        }
-        break;
-      case ARM_POWER_LOW:
-        break;
-      case ARM_POWER_FULL:
-        if ((PortActive[pin_port] & (1U << pin_num)) == 0U) {
-          PortActive[pin_port] |= (1U << pin_num);
-          CLOCK_EnableClock(ClockIP[pin_port]);
-          CLOCK_EnableClock(kCLOCK_Iocon);
-          CLOCK_EnableClock(kCLOCK_InputMux);
-          // Connect trigger sources to PINT
-          INPUTMUX_AttachSignal(INPUTMUX, (pint_pin_int_t)pint, pin + (PINTSEL_PMUX_ID << PMUX_SHIFT));
-          CLOCK_DisableClock(kCLOCK_InputMux);
-          PINT_Init(PINT);
-          PINT_PinInterruptConfig(PINT, (pint_pin_int_t)pint, kPINT_PinIntEnableNone, NULL);
+    SignalEvent[pint] = cb_event;
+    CLOCK_EnableClock(ClockIP[pin_port]);
+    CLOCK_EnableClock(kCLOCK_Iocon);
+    CLOCK_EnableClock(kCLOCK_InputMux);
+    // Connect trigger sources to PINT
+    INPUTMUX_AttachSignal(INPUTMUX, (pint_pin_int_t)pint, pin + (PINTSEL_PMUX_ID << PMUX_SHIFT));
+    CLOCK_DisableClock(kCLOCK_InputMux);
+    PINT_Init(PINT);
+    PINT_PinInterruptConfig(PINT, (pint_pin_int_t)pint, kPINT_PinIntEnableNone, NULL);
+    GPIO_PinSetDirection(GPIO, pin_port, pin_num, kGPIO_DigitalInput);
+    IOCON_PinMuxSet(IOCON, (uint8_t)pin_port, (uint8_t)pin_num, DefaultPinConfig);
+    NVIC_EnableIRQ(PinIRQn[pin >> 4U]);
 
-          GPIO_PinSetDirection(GPIO, pin_port, pin_num, kGPIO_DigitalInput);
-          IOCON_PinMuxSet(IOCON, (uint8_t)pin_port, (uint8_t)pin_num, DefaultPinConfig);
-          NVIC_EnableIRQ(PinIRQn[pin >> 4U]);
-        }
-        result = ARM_DRIVER_OK;
-        break;
-    }
+   result = ARM_DRIVER_OK;
+
   }
 
   return result;
@@ -343,10 +281,7 @@ static uint32_t GPIO_GetInput (ARM_GPIO_Pin_t pin) {
 
 // GPIO Driver access structure
 ARM_DRIVER_GPIO Driver_GPIO = {
-  GPIO_GetVersion,
-  GPIO_Initialize,
-  GPIO_Uninitialize,
-  GPIO_PowerControl,
+  GPIO_Setup,
   GPIO_SetDirection,
   GPIO_SetOutputMode,
   GPIO_SetPullResistor,
