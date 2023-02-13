@@ -18,7 +18,7 @@
  * $Date:        9. February 2023
  * $Revision:    V1.0
  *
- * Project:      GPIO Driver for LPC5411x
+ * Project:      GPIO Driver definitions for LPC5411x
  */
 
 #ifndef GPIO_LPC5411X_H_
@@ -37,7 +37,7 @@ void PIN_INT1_IRQHandler (void);
 void PIN_INT2_IRQHandler (void);
 void PIN_INT3_IRQHandler (void);
 
-// GPIO0 Driver access structure
+// GPIO Driver access structure
 extern ARM_DRIVER_GPIO Driver_GPIO;
 
 #ifdef  __cplusplus
