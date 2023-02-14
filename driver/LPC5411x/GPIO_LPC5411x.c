@@ -31,8 +31,13 @@
 
 
 // Pin mapping
-//   0 ..  31: PORT0 0..31
-//  32 ..  63: PORT1 0..31
+//    0 ..  22: PORT0  0..22
+//   29 ..  31: PORT0 29..31
+//   32 ..  50: PORT1  0..17
+
+// Pins 23,24,25,26:
+// - have specific support for I2C drive
+// - are already open drain and require an external pull-up to provide output functionality
 
 #define GPIO_MAX_PORTS          2U
 #define GPIO_MAX_PINS           48U
@@ -50,8 +55,9 @@ IOCON_PIO_OD(0U)          // Open drain    : Disabled
 );
 
 // PINx IRQ Numbers
-static IRQn_Type const PinIRQn[4U] = {
-  PIN_INT0_IRQn, PIN_INT1_IRQn, PIN_INT2_IRQn, PIN_INT3_IRQn
+static IRQn_Type const PinIRQn[FSL_FEATURE_PINT_NUMBER_OF_CONNECTED_OUTPUTS] = {
+  PIN_INT0_IRQn, PIN_INT1_IRQn, PIN_INT2_IRQn, PIN_INT3_IRQn,
+  PIN_INT4_IRQn, PIN_INT5_IRQn, PIN_INT6_IRQn, PIN_INT7_IRQn
 };
 
 // Clock IP Names
@@ -61,7 +67,7 @@ static clock_ip_name_t const ClockIP[GPIO_MAX_PORTS] = {
 
 
 // Signal Event callback functions
-static ARM_GPIO_SignalEvent_t SignalEvent[4U];
+static ARM_GPIO_SignalEvent_t SignalEvent[FSL_FEATURE_PINT_NUMBER_OF_CONNECTED_OUTPUTS];
 
 
 // Common PIN_INTx IRQ Handler
@@ -90,11 +96,10 @@ static void PIN_INTx_IRQHandler (uint32_t num) {
     SignalEvent[num](0U, event);
   }
 
+  // Edge sensitive: clear Pin interrupt after callback
   if ((PINT->ISEL & (1U << num)) == 0x0U) {
-    // Edge sensitive: clear Pin interrupt after callback
     PINT_PinInterruptClrStatus(PINT, (pint_pin_int_t)num);
   }
-
 }
 
 // Pin interrupt 0 IRQ Handler
@@ -117,6 +122,25 @@ void PIN_INT3_IRQHandler (void) {
   PIN_INTx_IRQHandler(3U);
 }
 
+// Pin interrupt 4 IRQ Handler
+void PIN_INT4_IRQHandler (void) {
+  PIN_INTx_IRQHandler(4U);
+}
+
+// Pin interrupt 5IRQ Handler
+void PIN_INT5_IRQHandler (void) {
+  PIN_INTx_IRQHandler(5U);
+}
+
+// Pin interrupt 6 IRQ Handler
+void PIN_INT6_IRQHandler (void) {
+  PIN_INTx_IRQHandler(6U);
+}
+
+// Pin interrupt 7 IRQ Handler
+void PIN_INT7_IRQHandler (void) {
+  PIN_INTx_IRQHandler(7U);
+}
 
 // Setup GPIO Interface
 static int32_t GPIO_Setup (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) {
@@ -128,7 +152,7 @@ static int32_t GPIO_Setup (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) 
   if (pin < GPIO_MAX_PINS) {
     pin_port = pin >> 1U;
     pin_num  = pin & 0x1FU;
-    pint     = pin >> 4U;
+    pint     = pin / 6U;
     SignalEvent[pint] = cb_event;
     CLOCK_EnableClock(ClockIP[pin_port]);
     CLOCK_EnableClock(kCLOCK_Iocon);
@@ -140,7 +164,7 @@ static int32_t GPIO_Setup (ARM_GPIO_Pin_t pin, ARM_GPIO_SignalEvent_t cb_event) 
     PINT_PinInterruptConfig(PINT, (pint_pin_int_t)pint, kPINT_PinIntEnableNone, NULL);
     GPIO_PinSetDirection(GPIO, pin_port, pin_num, kGPIO_DigitalInput);
     IOCON_PinMuxSet(IOCON, (uint8_t)pin_port, (uint8_t)pin_num, DefaultPinConfig);
-    NVIC_EnableIRQ(PinIRQn[pin >> 4U]);
+    NVIC_EnableIRQ(PinIRQn[pin >> 3U]);
 
    result = ARM_DRIVER_OK;
 
@@ -156,16 +180,19 @@ static int32_t GPIO_SetDirection (ARM_GPIO_Pin_t pin, ARM_GPIO_DIRECTION directi
   int32_t  result = ARM_DRIVER_ERROR;
 
   if (pin < GPIO_MAX_PINS) {
-    pin_port = pin >> 1U;
-    pin_num  = pin & 0x1FU;
-    if (direction == ARM_GPIO_OUTPUT) {
-      GPIO_PinSetDirection(GPIO, pin_port, pin_num, kGPIO_DigitalOutput);
+    if( pin > 26U && pin < 29U) {
+      result = ARM_DRIVER_ERROR_UNSUPPORTED;
     } else {
-      GPIO_PinSetDirection(GPIO, pin_port, pin_num, kGPIO_DigitalInput);
+      pin_port = pin >> 1U;
+      pin_num  = pin & 0x1FU;
+      if (direction == ARM_GPIO_OUTPUT) {
+        GPIO_PinSetDirection(GPIO, pin_port, pin_num, kGPIO_DigitalOutput);
+      } else {
+        GPIO_PinSetDirection(GPIO, pin_port, pin_num, kGPIO_DigitalInput);
+      }
+      result = ARM_DRIVER_OK;
+      }
     }
-    result = ARM_DRIVER_OK;
-  }
-
   return result;
 }
 
@@ -176,14 +203,18 @@ static int32_t GPIO_SetOutputMode (ARM_GPIO_Pin_t pin, ARM_GPIO_OUTPUT_MODE mode
   int32_t  result = ARM_DRIVER_ERROR;
 
   if (pin < GPIO_MAX_PINS) {
-    pin_port = pin >> 1U;
-    pin_num  = pin & 0x1FU;
-    if (mode == ARM_GPIO_OPEN_DRAIN) {
-      IOCON_EnablePinOpenDrain(IOCON, pin_port, pin_num, true);
+    if( pin > 22U && pin < 29U) {
+      result = ARM_DRIVER_ERROR_UNSUPPORTED;
     } else {
-      IOCON_EnablePinOpenDrain(IOCON, pin_port, pin_num, false);
+      pin_port = pin >> 1U;
+      pin_num  = pin & 0x1FU;
+      if (mode == ARM_GPIO_OPEN_DRAIN) {
+        IOCON_EnablePinOpenDrain(IOCON, pin_port, pin_num, true);
+      } else {
+        IOCON_EnablePinOpenDrain(IOCON, pin_port, pin_num, false);
+      }
+      result = ARM_DRIVER_OK;
     }
-    result = ARM_DRIVER_OK;
   }
 
   return result;
@@ -196,24 +227,28 @@ static int32_t GPIO_SetPullResistor (ARM_GPIO_Pin_t pin, ARM_GPIO_PULL_RESISTOR 
   int32_t  result = ARM_DRIVER_ERROR;
 
   if (pin < GPIO_MAX_PINS) {
-    pin_port = pin >> 1U;
-    pin_num  = pin & 0x1FU;
-    switch (resistor) {
-      case ARM_GPIO_PULL_NONE:
-        IOCON_SetPinPullConfig(IOCON, pin_port, pin_num, IOCON_MODE_INACT);
-        result = ARM_DRIVER_OK;
-        break;
-      case ARM_GPIO_PULL_UP:
-        IOCON_SetPinPullConfig(IOCON, pin_port, pin_num, IOCON_MODE_PULLDOWN);
-        result = ARM_DRIVER_OK;
-        break;
-      case ARM_GPIO_PULL_DOWN:
-        IOCON_SetPinPullConfig(IOCON, pin_port, pin_num, IOCON_MODE_PULLUP);
-        result = ARM_DRIVER_OK;
-        break;
-      default:
-        break;
-    }
+        if( pin > 22U && pin < 29U) {
+          result = ARM_DRIVER_ERROR_UNSUPPORTED;
+        } else {
+          pin_port = pin >> 1U;
+          pin_num  = pin & 0x1FU;
+          switch (resistor) {
+            case ARM_GPIO_PULL_NONE:
+              IOCON_SetPinPullConfig(IOCON, pin_port, pin_num, IOCON_MODE_INACT);
+              result = ARM_DRIVER_OK;
+              break;
+            case ARM_GPIO_PULL_UP:
+              IOCON_SetPinPullConfig(IOCON, pin_port, pin_num, IOCON_MODE_PULLDOWN);
+              result = ARM_DRIVER_OK;
+              break;
+            case ARM_GPIO_PULL_DOWN:
+              IOCON_SetPinPullConfig(IOCON, pin_port, pin_num, IOCON_MODE_PULLUP);
+              result = ARM_DRIVER_OK;
+              break;
+            default:
+              break;
+          }
+        }
   }
 
   return result;
@@ -225,7 +260,7 @@ static int32_t GPIO_SetEventTrigger (ARM_GPIO_Pin_t pin, ARM_GPIO_EVENT_TRIGGER 
   int32_t  result = ARM_DRIVER_ERROR;
 
   if (pin < GPIO_MAX_PINS) {
-    pint     = pin >> 4U;
+    pint     = pin / 6U;
     switch (trigger) {
       case ARM_GPIO_TRIGGER_NONE:
         PINT_PinInterruptConfig(PINT, (pint_pin_int_t)pint, kPINT_PinIntEnableNone, 0U);

@@ -36,6 +36,10 @@ void PIN_INT0_IRQHandler (void);
 void PIN_INT1_IRQHandler (void);
 void PIN_INT2_IRQHandler (void);
 void PIN_INT3_IRQHandler (void);
+void PIN_INT4_IRQHandler (void);
+void PIN_INT5_IRQHandler (void);
+void PIN_INT6_IRQHandler (void);
+void PIN_INT7_IRQHandler (void);
 
 // GPIO Driver access structure
 extern ARM_DRIVER_GPIO Driver_GPIO;
